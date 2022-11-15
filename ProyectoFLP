@@ -60,16 +60,13 @@
     (expresion ("let" (separated-list identificador "=" expresion ",") "in" expresion "end") let-exp)    (expresion ("letrec" (arbno identificador "(" (separated-list identificador ",") ")" "=" expresion) "in" expresion "end") letrec-exp)
     (expresion ("set" identificador ":=" expresion) set-exp)
     (expresion ("begin" expresion (separated-list expresion ",") "end") begin-exp)
-    (expresion ("if" bool-expresion "then" expresion (arbno "elseif" bool-expresion "then" expresion) "else" expresion "end") if-exp)
+    (expresion ("cond" "("(arbno "[" expresion expresion "]") ")" "[" "else" expresion "]") cond-exp)
     (expresion ("proc" "(" (separated-list identificador ",") ")" expresion "end") proc-exp)
-    (expresion ("apply" identificador "(" (separated-list expresion ",") ")") apply-exp)
-    (expresion ("meth" "(" identificador "," (separated-list identificador ",") ")" expresion "end") meth-exp)
     (expresion ("for" identificador "=" expresion "to" expresion "do" expresion "end") for-exp)
-    (expresion ("object" "{" (arbno identificador "=>" expresion) "}" ) object-exp)
+    (expresion ("while" "(" bool-expresion ")" "do" <expresion>  )
+    (expresion ("struct"  identificador "{" (separated-list identificador ";") "}" ) struct-exp)
     (expresion ("get" identificador "." identificador) get-exp)
-    (expresion ("send" identificador "." identificador "(" (separated-list expresion ",") ")") send-exp)
     (expresion ("update" identificador "." identificador ":=" expresion) update-exp)
-    (expresion ("clone" "(" identificador (separated-list identificador ",") ")" ) clone-exp)
     (bool-expresion ("true") true-exp)
     (bool-expresion ("false") false-exp)
     (bool-expresion ( bool-primitiva "(" (separated-list expresion ",") ")" ) bool-prim)
@@ -90,6 +87,7 @@
     (primitiva ("&") txt-prim)
     
     )
+  )
   )
  
 
