@@ -8,7 +8,6 @@
             ::= <numero>
             ::= <caracter>
             ::= <cadena>
-            ::= ok
             ::= "let" { <identificador> "=" <expresion>}*(,) "in" <expresion>
             ::= "set" <identificador> "=" <expresion>
             ::= "begin" <expresion> {<expresion>}*(;) "end"
@@ -18,7 +17,9 @@
             ::= "for" <identificador> "=" <expresion> "to" <expresion> "do" <expresion> "end"
             ::= "while" "("  <bool-expresion> ")" "do" <expresion>
             ::= "struct" <identificador> "{" (<identificador>)*(;) "}"  ";" 
-
+            ::= <identificador> "=" <identificador> "(" <expresion>* ")"(,) ";"
+            ::= "get" <identificador>"."<identificador> ";;"
+            ::= "update" <identificador>"."<identificador> "=" <expresion> ";"
 <bool-expresion>
             ::= true
             ::= false
@@ -30,11 +31,67 @@
            := length|concat
 <bool-primitiva>
             := < | > | <= | => | == | != | and | or | not
-
-    
-
+   
 |#
 
+(define especificacion-lexica
+  '(
+    (espacio-blanco (whitespace) skip)
+    (comentario ("*" (arbno (not #\newline)) "*") skip)
+    (identificador (letter (arbno (or letter digit "?" "$"))) symbol)
+    (numero (digit (arbno digit)) number)
+    (numero ("-" digit (arbno digit)) number)
+    (numero (digit (arbno digit)"." digit (arbno digit)) number)
+    (numero ("-" digit (arbno digit)"." digit (arbno digit)) number)
+    (caracter ( "\'" letter "\'") symbol)
+    (cadena ("\""(or letter digit) (arbno (or letter digit "?" "$"))"\"") string)
+    )
+  )
+
+(define especificacion-gramatical
+  '(
+    (programa (arbno struct) a-program)
+    (expresion (bool-expresion) bool-exp)
+    (expresion (identificador) id-exp)
+    (expresion (numero) num-exp)
+    (expresion (caracter) carac-exp)
+    (expresion (cadena) string-exp)
+    (expresion (primitiva "(" (separated-list expresion ",") ")") exp-primitiva)
+    (expresion ("let" (separated-list identificador "=" expresion ",") "in" expresion "end") let-exp)    (expresion ("letrec" (arbno identificador "(" (separated-list identificador ",") ")" "=" expresion) "in" expresion "end") letrec-exp)
+    (expresion ("set" identificador ":=" expresion) set-exp)
+    (expresion ("begin" expresion (separated-list expresion ",") "end") begin-exp)
+    (expresion ("if" bool-expresion "then" expresion (arbno "elseif" bool-expresion "then" expresion) "else" expresion "end") if-exp)
+    (expresion ("proc" "(" (separated-list identificador ",") ")" expresion "end") proc-exp)
+    (expresion ("apply" identificador "(" (separated-list expresion ",") ")") apply-exp)
+    (expresion ("meth" "(" identificador "," (separated-list identificador ",") ")" expresion "end") meth-exp)
+    (expresion ("for" identificador "=" expresion "to" expresion "do" expresion "end") for-exp)
+    (expresion ("object" "{" (arbno identificador "=>" expresion) "}" ) object-exp)
+    (expresion ("get" identificador "." identificador) get-exp)
+    (expresion ("send" identificador "." identificador "(" (separated-list expresion ",") ")") send-exp)
+    (expresion ("update" identificador "." identificador ":=" expresion) update-exp)
+    (expresion ("clone" "(" identificador (separated-list identificador ",") ")" ) clone-exp)
+    (bool-expresion ("true") true-exp)
+    (bool-expresion ("false") false-exp)
+    (bool-expresion ( bool-primitiva "(" (separated-list expresion ",") ")" ) bool-prim)
+    (bool-expresion ( bool-oper "(" (separated-list bool-expresion ",") ")") bool-operation)
+    (bool-primitiva (">") greater-prim)
+    (bool-primitiva ("<") lesser-prim)
+    (bool-primitiva ("<=") lesser-or-equal-prim)
+    (bool-primitiva (">=") greater-or-equal-prim)
+    (bool-primitiva ("is") is-prim)
+    (bool-oper ("and") and-prim)
+    (bool-oper ("or") or-prim)
+    (bool-oper ("not") not-prim)
+    (primitiva ("+") sum-prim)
+    (primitiva ("-") minus-prim)
+    (primitiva ("*") mult-prim)
+    (primitiva ("/") div-prim)
+    (primitiva ("%") mod-prim)
+    (primitiva ("&") txt-prim)
+    
+    )
+  )
+ 
 
 
 
