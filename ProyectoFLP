@@ -1,0 +1,41 @@
+#lang eopl
+#|
+
+<progama>   ::= {<estructura>}* <expresion>
+
+<expresion> ::= <bool-expresion>
+            ::= <identificador>
+            ::= <numero>
+            ::= <caracter>
+            ::= <cadena>
+            ::= ok
+            ::= "let" { <identificador> "=" <expresion>}*(,) "in" <expresion>
+            ::= "set" <identificador> "=" <expresion>
+            ::= "begin" <expresion> {<expresion>}*(;) "end"
+            ::= <primitiva> "(" {<expresion} ")" ")"
+            ::= "cond" { "[" <bool-expresion> "]" }* "[" "else" <expresion> "]"
+            ::= "proc" "(" {<identificador}*(,) ")" <expresion> "end"
+            ::= "for" <identificador> "=" <expresion> "to" <expresion> "do" <expresion> "end"
+            ::= "while" "("  <bool-expresion> ")" "do" <expresion>
+            ::= "struct" <identificador> "{" (<identificador>)*(;) "}"  ";" 
+
+<bool-expresion>
+            ::= true
+            ::= false
+            ::= <bool-primitiva> "(" {<expresion> }*(,) ")"
+            ::= <bool-operacion> "(" {<bool-expresion> }*(,) ")"
+
+<primitiva> := +|-|*|%|/|sum1|res1
+<list-primitiva>
+           := length|concat
+<bool-primitiva>
+            := < | > | <= | => | == | != | and | or | not
+
+    
+
+|#
+
+
+
+
+
