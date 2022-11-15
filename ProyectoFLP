@@ -1,96 +1,539 @@
 #lang eopl
-#|
 
-<progama>   ::= {<estructura>}* <expresion>
+;; Intérprete lenguaje Básico
 
-<expresion> ::= <bool-expresion>
-            ::= <identificador>
-            ::= <numero>
-            ::= <caracter>
-            ::= <cadena>
-            ::= "let" { <identificador> "=" <expresion>}*(,) "in" <expresion>
-            ::= "set" <identificador> "=" <expresion>
-            ::= "begin" <expresion> {<expresion>}*(;) "end"
-            ::= <primitiva> "(" {<expresion} ")" ")"
-            ::= "cond" { "[" <bool-expresion> "]" }* "[" "else" <expresion> "]"
-            ::= "proc" "(" {<identificador}*(,) ")" <expresion> "end"
-            ::= "for" <identificador> "=" <expresion> "to" <expresion> "do" <expresion> "end"
-            ::= "while" "("  <bool-expresion> ")" "do" <expresion>
-            ::= "struct" <identificador> "{" (<identificador>)*(;) "}"  ";" 
-            ::= <identificador> "=" <identificador> "(" <expresion>* ")"(,) ";"
-            ::= "get" <identificador>"."<identificador> ";;"
-            ::= "update" <identificador>"."<identificador> "=" <expresion> ";"
-<bool-expresion>
-            ::= true
-            ::= false
-            ::= <bool-primitiva> "(" {<expresion> }*(,) ")"
-            ::= <bool-operacion> "(" {<bool-expresion> }*(,) ")"
 
-<primitiva> := +|-|*|%|/|sum1|res1
-<list-primitiva>
-           := length|concat
-<bool-primitiva>
-            := < | > | <= | => | == | != | and | or | not
-   
-|#
+;; Especificación léxica
 
-(define especificacion-lexica
-  '(
-    (espacio-blanco (whitespace) skip)
-    (comentario ("*" (arbno (not #\newline)) "*") skip)
-    (identificador (letter (arbno (or letter digit "?" "$"))) symbol)
-    (numero (digit (arbno digit)) number)
-    (numero ("-" digit (arbno digit)) number)
-    (numero (digit (arbno digit)"." digit (arbno digit)) number)
-    (numero ("-" digit (arbno digit)"." digit (arbno digit)) number)
-    (caracter ( "\'" letter "\'") symbol)
-    (cadena ("\""(or letter digit) (arbno (or letter digit "?" "$"))"\"") string)
-    )
-  )
+(define lexical-spec
+  '((white-sp (whitespace) skip)
+    (comment ("//" (arbno (not #\newline))) skip)
+    ;;<identifier> ::= <letter> (<letter> | <digit> | "?" | "$" | "_" )*
+    (identifier (letter (arbno (or letter digit "?" "$" "_"))) symbol)
+    ;;<string> ::= '"' ( <letter> | <digit> | <whitespace>| "." | "," | ":" | ";" | "-" | "*" | "{" | "}" | "+" | "¡" | "!" | "¿" | "?" | "=" | "'" | "@" | "#" | "%" | "$" | "&" | "/" | "(" | ")" | ">" | "<" | "|")* '"'
+    (string ("\"" (arbno (or letter digit whitespace
+                             "." "," ":" ";" "-" "*" "{" "}" "+" "¡" "!" "¿" "?" "=" "'" "@" "#" "%" "$" "&" "/" "(" ")" ">" "<" "|")) "\"") string)
+    ;;<integer> ::= <digit> <digit>*
+    (integer (digit (arbno digit)) number)
+    ;;<integer> ::= "-" <integer>
+    (integer ("-" digit (arbno digit)) number)
+    ;;<float> ::= <integer> "." <integer>
+    (float (digit (arbno digit) "." digit (arbno digit)) number)
+    ;;<float> ::= "-" <float>
+    (float ("-" digit (arbno digit) "." digit (arbno digit)) number)
+    ;;<hexadecimal> ::= "#x" ( <digit> | "A" | "B" | "C" | "D" | "E" | "F" ) ( <digit> | "A" | "B" | "C" | "D" | "E" | "F" )*
+    (hexadecimal ("#x" (or digit "A" "B" "C" "D" "E" "F") (arbno (or digit "A" "B" "C" "D" "E" "F"))) number)
+    ;;<octal> ::= "#o" ("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8") ("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8")*
+    (octal ("#o" (or "0" "1" "2" "3" "4" "5" "6" "7" "8") (arbno (or "0" "1" "2" "3" "4" "5" "6" "7" "8"))) number)))
 
-(define especificacion-gramatical
-  '(
-    (programa (arbno struct) a-program)
-    (expresion (bool-expresion) bool-exp)
-    (expresion (identificador) id-exp)
-    (expresion (numero) num-exp)
-    (expresion (caracter) carac-exp)
-    (expresion (cadena) string-exp)
-    (expresion (primitiva "(" (separated-list expresion ",") ")") exp-primitiva)
-    (expresion ("let" (separated-list identificador "=" expresion ",") "in" expresion "end") let-exp)    (expresion ("letrec" (arbno identificador "(" (separated-list identificador ",") ")" "=" expresion) "in" expresion "end") letrec-exp)
-    (expresion ("set" identificador ":=" expresion) set-exp)
-    (expresion ("begin" expresion (separated-list expresion ",") "end") begin-exp)
-    (expresion ("cond" "("(arbno "[" expresion expresion "]") ")" "[" "else" expresion "]") cond-exp)
-    (expresion ("proc" "(" (separated-list identificador ",") ")" expresion "end") proc-exp)
-    (expresion ("for" identificador "=" expresion "to" expresion "do" expresion "end") for-exp)
-    (expresion ("while" "(" bool-expresion ")" "do" <expresion>  )
-    (expresion ("struct"  identificador "{" (separated-list identificador ";") "}" ) struct-exp)
-    (expresion ("get" identificador "." identificador) get-exp)
-    (expresion ("update" identificador "." identificador ":=" expresion) update-exp)
-    (bool-expresion ("true") true-exp)
-    (bool-expresion ("false") false-exp)
-    (bool-expresion ( bool-primitiva "(" (separated-list expresion ",") ")" ) bool-prim)
-    (bool-expresion ( bool-oper "(" (separated-list bool-expresion ",") ")") bool-operation)
-    (bool-primitiva (">") greater-prim)
-    (bool-primitiva ("<") lesser-prim)
-    (bool-primitiva ("<=") lesser-or-equal-prim)
-    (bool-primitiva (">=") greater-or-equal-prim)
-    (bool-primitiva ("is") is-prim)
-    (bool-oper ("and") and-prim)
-    (bool-oper ("or") or-prim)
-    (bool-oper ("not") not-prim)
-    (primitiva ("+") sum-prim)
-    (primitiva ("-") minus-prim)
-    (primitiva ("*") mult-prim)
-    (primitiva ("/") div-prim)
-    (primitiva ("%") mod-prim)
-    (primitiva ("&") txt-prim)
+
+;; Especificación gramatical
+
+(define grammar-spec
+  '((program (expression) a-program)
     
-    )
-  )
-  )
- 
+    ;; Basic expressions        
+    ;; <expression> ::= <identifier> :: var-exp
+    (expression (identifier) var-exp)
+    ;; <expression> ::= <integer> :: int-exp
+    (expression (integer) int-exp)
+    ;; <expression> ::= <float> :: float-exp
+    (expression (float) float-exp)
+    ;; <expression> ::= <hexadecimal> :: hex-exp
+    (expression (hexadecimal) hex-exp)
+    ;; <expression> ::= <octal> :: oct-exp
+    (expression (octal) oct-exp)
+    ;; <expression> ::= <string> :: str-exp
+    (expression (string) str-exp)
+    ;; <expression> ::= "True" :: true-exp
+    (expression ("True") true-exp)
+    ;; <expression> ::= "False" :: false-exp
+    (expression ("False") false-exp)
+    
+    ;; Primitive expressions
+    ;; <expression> ::= <primitive> <expression> :: prim-exp
+    (expression (primitive expression) prim-exp)
+    ;; <expression> ::= "(" <expression> <primitive-bin> <expression> ")" :: prim-bin-exp
+    (expression ("(" expression primitive-bin expression ")") prim-bin-exp)
+    
+    ;; Conditional expression
+    ;; <expression> ::= "if" <expression> "{" <expression> <expression>* "}" ( "elif" <expression> "{" <expression>* "}" )* "else" "{" <expression>* "}" :: if-exp
+    (expression ("if" expression "{" expression (arbno expression) "}"
+                      (arbno "elif" expression "{" (arbno expression) "}")
+                      "else" "{" (arbno expression) "}") if-exp)
+    ;; <expression> ::= "cond" ("{" <expression> <expression> "}")* "else" <expression> :: cond-exp
+    (expression ("cond" (arbno "{" expression expression "}" ) "else" expression)cond-exp)
+    
+    ;; Assignation expression
+    ;; <expression> ::= ( "var" <identifier> "=" <expression> )* ";" <expression> :: assign-exp
+    (expression ((arbno "var" identifier "=" expression) ";" expression) assign-exp)
+    ;; <expression> ::= "change" <identifier> "=" <expression> :: set-exp
+    (expression ( "change" identifier "=" expression) set-exp)
+    
+    ;; Function declaraction expression (general and recursive functions)
+    ;; <expression> ::= "return" <expression> :: return-exp
+    (expression ("return" expression) return-exp)
+    ;; <expression> ::= "func" (<identifier> "(" {<identifier> ","}* ")" "{" <expression>* "}")* ";" <expression> :: func-exp
+    (expression ("func" ( arbno identifier "(" (separated-list identifier ",") ")" "{" (arbno expression) "}") ";" expression) func-exp)
+    ;; Function call expression
+    ;; <expression> ::= "call" <identifier> "(" {<expression> ","}* ")" :: call-exp
+    (expression ("call" identifier "(" (separated-list expression ",") ")") call-exp)
+    
+    ;; For expression
+    ;; <expression> ::= "for" <identifier> "in" <expression> "{" <expression> "}" :: for-exp
+    (expression ("for" identifier "in" expression "{" expression "}") for-exp)
+    ;; <expression> ::= "{" <expression> ".." <expression> "}" :: range-exp
+    (expression ("{" expression ".." expression "}") range-exp)
+    
+    ;; Sequence expression
+    ;; <expression> ::= "start" <expression> <expression>* "end" :: start-exp
+    (expression ("start" expression (arbno expression) "end") start-exp)
+
+    ;; Object/structure call expression
+    ;; <expression> ::= "[" <identifier> "." <expression> "]" :: call-obj-exp
+    (expression ("[" identifier "." expression "]") call-obj-exp)
+
+    ;; Structure expression
+    ;; <expression> ::= "struct" <identifier> "{" {<identifier> ";"}* "}" (<identifier> "=" "{" {<expression> ","}* "}")* ";" <expression> :: struct-exp
+    (expression ("struct" identifier "{" (separated-list identifier ";") "}"";" (arbno identifier "=""(" (separated-list expression ",") ")")";" expression) struct-exp)
+
+    ;; Object expression
+    ;; <expression> ::= "obj" <identifier> "=" "[" (<identifier> ":" <expression> ",")* "]" ";" <expression> :: obj-exp
+    (expression ("obj" identifier "=" "[" (arbno identifier ":" expression ",") "]" ";" expression) obj-exp)
+    ;; <expression> ::= "method" "(" {<identifier> ","}* ")" "{" <expression> "}" :: obj-func
+    (expression ("method" "(" (separated-list identifier ",") ")" "{" expression "}") obj-func)
+    ;; <expression> ::= "execute" <identifier> "(" {<expression> ","}* ")" :: call-func-obj-exp
+    (expression ("execute" identifier "(" (separated-list expression ",")")") call-func-obj-exp)
+    
+    ;; Primitives    
+    ;; <primitive-bin> ::= + :: add-prim
+    (primitive-bin ("+") add-prim)
+    ;; <primitive-bin> ::= - :: subst-prim
+    (primitive-bin ("-") subst-prim)
+    ;; <primitive-bin> ::= / :: div-prim
+    (primitive-bin ("/") div-prim)
+    ;; <primitive-bin> ::= * :: mult-prim
+    (primitive-bin ("*") mult-prim)
+    ;; <primitive-bin> ::= % :: mod-prim
+    (primitive-bin ("%") mod-prim)
+    ;; <primitive-bin> ::= < :: less-prim
+    (primitive-bin ("<") less-prim)
+    ;; <primitive-bin> ::= > :: greater-prim
+    (primitive-bin (">") greater-prim)
+    ;; <primitive-bin> ::= <= :: less-e-prim
+    (primitive-bin ("<=") less-e-prim)
+    ;; <primitive-bin> ::= >= :: greater-e-prim
+    (primitive-bin (">=") greater-e-prim)
+    ;; <primitive-bin> ::= == :: equal-prim
+    (primitive-bin ("==") equal-prim)
+    ;; <primitive-bin> ::= != :: no-equal-prim
+    (primitive-bin ("!=") no-equal-prim)
+    ;; <primitive-bin> ::= and :: and-prim
+    (primitive-bin ("and") and-prim)
+    ;; <primitive-bin> ::= or :: or-prim
+    (primitive-bin ("or") or-prim)
+    ;; <primitive-bin> ::= concat :: concat-prim
+    (primitive-bin ("concat") concat-prim)
+    
+    ;; <primitive> ::= not :: not-prim
+    (primitive ("not") not-prim)
+    ;; <primitive> ::= add1 :: add1-prim
+    (primitive ("add1") add1-prim)
+    ;; <primitive> ::= sub1 :: sub1-prim
+    (primitive ("sub1") sub1-prim)
+    ;; <primitive> ::= length :: len-prim
+    (primitive ("length") len-prim)
+    ))
 
 
+;;-----------------------------------------------------------------------------
+;; Definición del ambiente
+
+(define-datatype environment environment?
+  (empty-env)
+  (extend-env-ref (symbols (list-of symbol?))
+                  (values vector?)
+                  (old-env environment?)))
+
+(define extend-env
+  (lambda (ids values old-env)
+    (extend-env-ref ids (list->vector values) old-env)))
+
+(define recursive-extend-env
+  (lambda (procnames ids bodies old-env)
+    (letrec
+        (
+         [vec-closures (make-vector (length procnames))]
+         [env (extend-env-ref procnames vec-closures old-env)]
+         [get-closures (lambda (ids bodies pos)
+                         (cond
+                           [(null? ids) env]
+                           [else (begin (vector-set! vec-closures pos (closure (car ids) (car bodies) env))
+                                        (get-closures (cdr ids) (cdr bodies) (+ 1 pos)))]))]
+         )     
+      (get-closures ids bodies 0))))
+
+(define apply-env
+  (lambda (env var)
+    (deref (apply-env-ref env var))))
+
+;; Devuelve el valor de un símbolo presente en un ambiente particular
+(define apply-env-ref
+  (lambda (env id)
+    (cases environment env
+      (empty-env () (eopl:error id "not found."))
+      (extend-env-ref (ids values old-env)
+                      (letrec
+                          (
+                           [search-id (lambda (ids values pos)
+                                        (cond
+                                          [(null? ids) (apply-env-ref old-env id)]
+                                          [(equal? id (car ids)) (a-ref pos values)]
+                                          [else (search-id (cdr ids) values (+ 1 pos))]))]
+                           )
+                        (search-id ids values 0))))))
+
+;; Definición del ambiente inicial
+(define init-env (empty-env))
+;;-----------------------------------------------------------------------------
 
 
+;;-----------------------------------------------------------------------------
+;; Definición del datatype de las referencias
+(define-datatype reference reference?
+  (a-ref (pos number?)
+         (vec vector?)))
+
+;; Definición del extractor de referencias
+(define deref
+  (lambda (ref)
+    (primitive-deref ref)))
+
+(define primitive-deref
+  (lambda (ref)
+    (cases reference ref
+      (a-ref (pos vec) (vector-ref vec pos)))))
+
+;; Definición de asignación/cambio de referencia
+(define setref!
+  (lambda (ref val)
+    (primitive-setref! ref val)))
+
+(define primitive-setref!
+  (lambda (ref val)
+    (cases reference ref
+      (a-ref (pos vec) (vector-set! vec pos val)))))
+;;-----------------------------------------------------------------------------
+
+
+;;-----------------------------------------------------------------------------
+;; Definición del datatype para los procedimientos
+(define-datatype proc-val proc-val?
+  (closure (ids (list-of symbol?))
+           (body (list-of expression?))
+           (env environment?)))
+
+;; Definición del datatype para las estructuras
+(define-datatype struct struct?
+  (structure (fields (list-of symbol?))
+             (values (list-of (lambda (x) #t)))))
+
+;; Definición del datatype para los objetos
+(define-datatype object object?
+  (obj (fields (list-of symbol?))
+       (values (list-of (lambda (x) #true)))))
+
+;; Definicion del datatype para funcion de objetos
+(define-datatype method method?
+  (closure-obj (lid (list-of symbol?))
+               (body expression?)
+               (amb-creation environment?)))
+;;-----------------------------------------------------------------------------
+
+
+;;-----------------------------------------------------------------------------
+;; Definición de los datatypes
+(sllgen:make-define-datatypes lexical-spec grammar-spec)
+
+;; Recibe un AST tipo program y llama a (eval-exp) con la
+;; expresión interna y el ambiente inicial
+(define eval-program
+  (lambda (pgm)
+    (cases program pgm
+      (a-program (body)
+                 (let
+                     (
+                      [result (eval-exp body init-env)]
+                      )
+                   (cond
+                     [(equal? result #true) 'True]
+                     [(equal? result #false) 'False]
+                     [else result]))))))
+
+;; Recibe un AST tipo expression junto con un ambiente y
+;; procesa cada tipo de expresión (convierte la expresión
+;; en un dato concreto)
+(define eval-exp
+  (lambda (exp env)
+    ;; Auxiliar function
+    ;;Se recibe una lista de expresiones y se evalúan todas hasta que solo haya una, que es la que se retorna.
+    (define (eval-begin exps env)
+      (cond
+        [(null? (cdr exps)) (eval-exp (car exps) env)]
+        [else (begin (eval-exp (car exps) env)
+                     (eval-begin (cdr exps) env))]))
+    (cases expression exp
+      ;; Basic expression
+      (var-exp (id) (apply-env env id))
+      (int-exp (data) data)
+      (float-exp (data) data)
+      (hex-exp (data) data)
+      (oct-exp (data) data)
+      ;;Se extrae una subcadena para eliminar las comillas sobrantes
+      (str-exp (data) (substring data 1 (- (string-length data) 1)))
+      (true-exp () #true)
+      (false-exp () #false)
+      ;; Primitive expressions
+      (prim-exp (prim exp)
+                ;Se evalúa la expresión y se le aplica la operación correspondiente a la primitiva.
+                (let
+                    (
+                     [_exp (eval-exp exp env)]
+                     )
+                  (cases primitive prim
+                    (not-prim () (not _exp))
+                    (add1-prim () (+ _exp 1))
+                    (sub1-prim () (- _exp 1))
+                    (len-prim () (if (string? _exp)
+                                     (string-length _exp)
+                                     (eopl:error "Not a string."))))))
+      (prim-bin-exp (exp1 prim exp2)
+                    ;Se evalúan las expresiones y se les aplica la operación correspondiente a la primitiva.
+                    (let
+                        (
+                         [_exp1 (eval-exp exp1 env)]
+                         [_exp2 (eval-exp exp2 env)]
+                         )
+                      (cases primitive-bin prim
+                        (add-prim () (+ _exp1 _exp2))
+                        (subst-prim () (- _exp1 _exp2))
+                        (div-prim () (/ _exp1 _exp2))
+                        (mult-prim () (* _exp1 _exp2))
+                        (mod-prim () (modulo _exp1 _exp2))
+                        (less-prim () (< _exp1 _exp2))
+                        (greater-prim () (> _exp1 _exp2))
+                        (less-e-prim () (<= _exp1 _exp2))
+                        (greater-e-prim () (>= _exp1 _exp2))
+                        (equal-prim () (equal? _exp1 _exp2))
+                        (no-equal-prim () (not (equal? _exp1 _exp2)))
+                        (and-prim () (and _exp1 _exp2))
+                        (or-prim () (or _exp1 _exp2))
+                        (concat-prim () (cond
+                                          [(and (string? _exp1) (string? _exp2)) (string-append _exp1 _exp2)] ;Concatena dos strings
+                                          [(and (string? _exp1) (number? _exp2)) (string-append _exp1 (number->string _exp2))];Concatena un string con un número.
+                                          [(and (number? _exp1) (string? _exp2)) (string-append (number->string _exp1) _exp2)];Concatena un número con un string. 
+                                          [else eopl:error "Concatenation is not possible."])))))
+      ;; Assignation expression
+      (assign-exp (ids args body)
+                  ;Se evalúa la lista de argumentos que está ligado a cada identificador,
+                  ;después de esto se extiende un ambiente en el que es evaluado el cuerpo.
+                  (let
+                      (
+                       [_args (map (lambda (x) (eval-exp x env)) args)]
+                       )
+                    (begin
+                      (set! init-env (extend-env ids _args env));Se modifica el ambiente inicial para tener estos valores en toda la ejecución.
+                      (eval-exp body (extend-env ids _args env)))))
+      ;; Reasignation expression
+      (set-exp (id arg)
+               ;Se busca el id a modificar y se le asigna el nuevo valor, retornando este mismo.
+               (begin
+                 (setref! (apply-env-ref env id) (eval-exp arg env))
+                 (eval-exp arg env)))
+      ;; Conditional expression
+      (if-exp (cond1 exp1 exp2 cond2 exp3 exp4)
+              ;Evalúa si la primer expresión es verdadera, si es así ejecuta su cuerpo, si no es así empieza a buscar cual de las expresiones
+              ;de los elif es la verdadera y ejecuta el cuerpo de esa, si ninguna es verdadera ejecuta el cuerpo del else.
+              (letrec
+                  (
+                   [aux (cons exp1 exp2)]
+                   [eval-true (lambda (exps)
+                                (cond
+                                  [(null? exps) #false]
+                                  [(eval-exp (car exps) env) #true]
+                                  [else (eval-true (cdr exps))]))]
+                   [search-true (lambda (exps acc)
+                                  (cond
+                                    [(null? exps) -1]
+                                    [(eval-exp (car exps) env) acc]
+                                    [else (search-true (cdr exps) (+ acc 1))]))]
+                   [pos (search-true cond2 0)]
+                   )
+                (cond
+                  [(eval-exp cond1 env) (eval-begin aux env)]
+                  [(eval-true cond2) (eval-begin (list-ref exp3 pos) env)]
+                  [else (eval-begin exp4 env)])))
+      
+      (cond-exp (lexp1 lexp2 exp)
+                ;Evalua la lista de condicionales buscando "true" en caso de encontrar esto, evalua la expresión
+                ;correspondiente y si no encuentra ninguna condicion verdadera procede a evaluar la exp que corresponde al else.
+                (letrec
+                    ([search-true (lambda (lexp lbodys)
+                                    (cond
+                                      [(null? lexp) (eval-exp exp env)]
+                                      [(eval-exp (car lexp) env) (eval-exp (car lbodys) env)]
+                                      [else (search-true (cdr lexp) (cdr lbodys))]))])
+                  (search-true lexp1 lexp2)
+                  )
+                                    
+                )
+      ;; Return expression
+      (return-exp (exp) (eval-exp exp env));Evalúa una expresión.
+      ;; Function declaration expression
+      (func-exp (ids args return body)
+                ;Evalúa el cuerpo en un ambiente recursivo que contiene los identificadores y argumentos de la función.
+                (begin
+                  (set! init-env (recursive-extend-env ids args return env))
+                  (eval-exp body (recursive-extend-env ids args return env))))
+      ;; Function call expression
+      (call-exp (id args)
+                ;Esta funcion recibe una funcion a ejecutar con sus respectivos parámetros de entrada, crea el ambiente interno con sus variables
+                ;y ejecuta la expresión de la función apartir de este.
+                (let
+                    (
+                     [_args (map (lambda (x) (eval-exp x env)) args)]
+                     [proc (apply-env env id)]
+                     )
+                  (if (proc-val? proc)
+                      (cases proc-val proc
+                        (closure (ids body old-env)
+                                 (if (equal? (length ids) (length _args))
+                                     (eval-begin body (extend-env ids _args old-env))
+                                     (eopl:error "Wrong number of arguments."))))
+                      (eopl:error proc "is not a valid function."))))
+      ;; Range expression
+      (range-exp (start end)
+                 ;Se crea una lista desde el valor inicial hasta el valor final ingresados.
+                 (letrec
+                     (
+                      [range (lambda (start end)
+                               (cond
+                                 [(equal? start end) (cons end empty)]
+                                 [else (cons start (range (+ start 1) end))]))]
+                      )
+                   (range (eval-exp start env) (eval-exp end env))))
+      ;; For expression
+      (for-exp (id value body)
+               ;Evalúa la el cuerpo de la función para cada elemento de este ciclo.
+               (begin
+                 (for-each (lambda (x) (display (eval-exp body (extend-env (list id) (list x) env))) (newline)) (eval-exp value env))
+                 'end))
+      ;; Sequence expression
+      (start-exp (exp lexp)
+                 ;Si solo hay una expresión, se evalúa y se retorna. En caso de haber varias, se evalúan todas y se retorna la última.
+                 (if (null? lexp)
+                     (eval-exp exp env)
+                     (begin
+                       (eval-exp exp env)
+                       (letrec
+                           (
+                            (eval-begin (lambda (lexp)
+                                          (cond
+                                            [(null? (cdr lexp)) (eval-exp (car lexp) env)]
+                                            [else (begin (eval-exp (car lexp) env)
+                                                         (eval-begin (cdr lexp)))])))
+                            )
+                         (eval-begin lexp)))))
+      ;; Struct expression
+      (struct-exp (id fields lids values body)
+                  ;Se evalúan los valores que contiene cada campo de la estructura y se genera una lista de datatypes de estructuras.
+                  ;se genera un ambiente extendido en el que es evaluado el cuerpo.
+                  (letrec
+                      (
+                       [lvalues (map (lambda (x) (map (lambda (y) (eval-exp y env)) x)) values)]
+                       [sort-list (lambda (lexp)
+                                    (cond
+                                      [(null? lexp) '()]
+                                      [(= (length fields) (length (car lexp))) (cons (structure fields (car lexp)) (sort-list (cdr lexp)))]
+                                      [else (eopl:error "Number of arguments invalid.")]))]
+                       )
+                    (begin
+                      (set! init-env (extend-env lids (sort-list lvalues) env))
+                      (eval-exp body (extend-env lids (sort-list lvalues) env)))))
+      ;; Object epxression
+      (obj-exp (id ids exps body)
+               ;Se evalúan los valores de cada atributo del objeto y se almacenan como datatypes en un ambiente extendido, para
+               ;posteriormente evaluar el cuerpo.
+               (let
+                   (
+                    [_exps (map (lambda (x) (eval-exp x env)) exps)]
+                    )
+                 (begin
+                   (set! init-env (extend-env (list id) (list (obj ids _exps)) env))
+                   (eval-exp body (extend-env (list id) (list (obj ids _exps)) env)))
+                 ))
+      ;; Object/structure call expression
+      (call-obj-exp (id field)
+                    ;Se busca en el ambiente el identificador y dependiendo si es una variable o una función se aplica la lógica correspondiente.
+                    (letrec
+                        (
+                         [_id (apply-env env id)]                         
+                         [search-id (lambda (id lid lval)
+                                      (cond
+                                        [(null? lid) (eopl:error "Variable not found.")]
+                                        [(equal? id (car lid)) (car lval)]
+                                        [else (search-id id (cdr lid) (cdr lval))]))]
+                         )
+                      (cases expression field
+                        (var-exp (id2)
+                                 ;Se evalúa si lo que se ha encontrado es un objeto o una estructura y se busca dentro de estos el campo requerido por el usuario.
+                                 (cond
+                                   [(object? _id) (cases object _id
+                                                    (obj (ids values) (search-id id2 ids values)))]
+                                   [(struct? _id) (cases struct _id
+                                                    (structure (ids values) (search-id id2 ids values)))]
+                                   [else eopl:error "Syntax not valid."]))
+
+                        (call-func-obj-exp (exp lexps)
+                                           ;Ejecuta la función dentro de un ambiente extendido que contiene los ids y los argumentos ingresados.
+                                           (cases object _id
+                                             (obj (ids values) (let
+                                                                   [
+                                                                    (clos (search-id exp ids values))
+                                                                    (lexp (map (lambda (x) (eval-exp x env))lexps))]
+                                                                 (if
+                                                                  (method? clos)
+                                                                  (cases method clos
+                                                                    (closure-obj (lid body old-env)
+                                                                                 (if (= (length lid) (length lexp))
+                                                                                     (eval-exp body
+                                                                                               (extend-env lid lexp(extend-env (cons id ids) (cons _id values) old-env)))
+                                                                                     (eopl:error "El número de argumentos no es correcto, debe enviar" (length lid)  " y usted ha enviado" (length lexp))
+                                                                                     )
+                                                                                 ))
+                                                                  (eopl:error "No puede evaluarse algo que no sea un procedimiento" clos) 
+                                                                  ))
+                                                  )))
+                        (else 0)
+                        )))
+
+                                         
+                       
+        
+      ;;Object function 
+      (obj-func (lids lexp)
+                (closure-obj lids lexp env));Genera un datatype Objeto.
+      (call-func-obj-exp (id lexp)
+                         (eopl:error "no estas usando un objeto"));Si se intenta llamar una función de un objeto sin invocar al objeto da error.
+      )))
+
+;; Definición del intérprete
+(define interprete
+  (sllgen:make-rep-loop
+   "-> "
+   eval-program
+   (sllgen:make-stream-parser lexical-spec grammar-spec)))
+;;-----------------------------------------------------------------------------
+
+
+(interprete)
