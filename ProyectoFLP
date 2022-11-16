@@ -114,6 +114,10 @@
     (expression ("for" identifier "in" expression "{" expression "}") for-exp)
     ;; <expression> ::= "{" <expression> ".." <expression> "}" :: range-exp
     (expression ("{" expression ".." expression "}") range-exp)
+
+    ;;While expression
+    ;; <expression> ::= "while" <expression> "{" <expression> "}" :: while-exp
+    (expression ("while" expression "{" expression "}") while-exp)
     
     ;; Sequence expression
     ;; <expression> ::= "start" <expression> <expression>* "end" :: start-exp
@@ -127,11 +131,11 @@
     (expression ("set" identifier "." expression "=" expression ";") set-struct-exp)
     
     ;; Structure expression
-    ;; <expression> ::= "struct" <identifier> "{" {<identifier> ";"}* "}"   ";"  
+    ;; <expression> ::= "struct" <identifier> "{" {<identifier> ";"}* "}"   ";"  :: struct-exp
     (expression ("struct" identifier "{" (separated-list identifier ";") "}" ";" ) struct-exp)
     
-   ;; (<identifier> "=" "(" {<expression> ","} ")" )* ";" <expression> :: struct-exp
-  ; (expression ("new" identifier "=" identifier () ) ) strct-exp)
+   ;;<expression> ::=  "new" <identifier> "=" <identifier> "(" {<expression> ","} ")" )* ";"  :: strct-exp
+   (expression ("new" identifier "=" identifier "(" (separated-list expression ",") ")" ";" )  strct-exp)
 
     
     ;; Primitives    
@@ -190,5 +194,4 @@
     
 
 (interpretador)
-
 
