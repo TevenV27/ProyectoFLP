@@ -127,13 +127,15 @@
     ;; <expression> ::= "get" <identifier> "." <expression> ";;" :: call-struct-exp
     (expression ("get" identifier "." expression ";;") call-struct-exp)
 
+    ;; structure set expression
     ;;<expression> ::= "set" <identifier> "." <expression> "=" <expression> ";" :: set-struct-exp
     (expression ("set" identifier "." expression "=" expression ";") set-struct-exp)
     
     ;; Structure expression
     ;; <expression> ::= "struct" <identifier> "{" {<identifier> ";"}* "}"   ";"  :: struct-exp
     (expression ("struct" identifier "{" (separated-list identifier ";") "}" ";" ) struct-exp)
-    
+
+   ;;new structure expression 
    ;;<expression> ::=  "new" <identifier> "=" <identifier> "(" {<expression> ","} ")" )* ";"  :: strct-exp
    (expression ("new" identifier "=" identifier "(" (separated-list expression ",") ")" ";" )  strct-exp)
 
